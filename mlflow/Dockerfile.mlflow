@@ -1,0 +1,78 @@
+FROM ubuntu:20.04
+
+# time, locales
+RUN apt-get update && apt-get install -y \
+    locales \
+    tzdata \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Set environment to japanese
+RUN locale-gen ja_JP.UTF-8
+ENV LANG ja_JP.UTF-8
+ENV LANGUAGE ja_JP:ja
+ENV LC_ALL ja_JP.UTF-8
+
+# Add ASIZ/TOKYO time zone
+RUN sed -i.bak -e "s%http://archive.ubuntu.com/ubuntu/%http://ftp.jaist.ac.jp/pub/Linux/ubuntu/%g" /etc/apt/sources.list
+ENV TZ Asia/Tokyo
+RUN echo "${TZ}" > /etc/timezone \
+  && rm /etc/localtime \
+  && ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime \
+  && dpkg-reconfigure -f noninteractive tzdata
+
+# user
+ENV USER=ubuntu GROUP=ubuntu
+ENV HOME=/home/$USER
+ENV PATH=/home/ubuntu/.local/bin:$PATH
+
+# volume マウント時にファイルを扱えるよう、ホストマシンのユーザーと uid, gid を合わせる
+RUN groupadd -g 1000 -r $GROUP \
+  && useradd --create-home --no-log-init -r -s /bin/zsh -u 1000 -g $GROUP $USER
+
+# apt-packages
+RUN apt-get update && apt-get install -y \
+    zsh curl git \
+    build-essential \
+    libbz2-dev \
+    libcupti-dev \
+    libffi-dev \
+    liblzma-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    default-libmysqlclient-dev \
+    libssl-dev \
+    pkg-config \
+    zlib1g-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+USER $USER
+WORKDIR $HOME
+
+# User settings
+COPY --chown=$USER:$GROUP .zshenv ./
+RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshenv \
+  && echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshenv \
+  && echo 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.zshenv
+
+# Python
+ENV PYTHON_VERSION=3.10.4
+RUN git clone https://github.com/pyenv/pyenv.git .pyenv \
+  && git clone https://github.com/pyenv/pyenv-virtualenv.git .pyenv/plugins/pyenv-virtualenv \
+  && . ~/.zshenv \
+  && pyenv init - >> ~/.zshenv \
+  && pyenv install $PYTHON_VERSION \
+  && pyenv global $PYTHON_VERSION \
+  && pyenv rehash \
+  && rm -rf $HOME/.cache
+
+USER $USER
+WORKDIR /app
+
+# Specific
+RUN . ~/.zshenv && pip install mlflow boto3 mysqlclient
+COPY --chown=$USER:$GROUP docker_entrypoint.sh /
+
+ENTRYPOINT ["/docker_entrypoint.sh"]
+# CMD mlflow server -h 0.0.0.0 -p 5000 --default-artifact-root s3://cfiken-kaggle/mlflow --backend-store-uri $BACKEND_URI
