@@ -38,6 +38,7 @@ USER root
 
 RUN usermod -aG sudo $USER 
 RUN echo "$USER:ubuntu" | chpasswd
+RUN chown -R $USER:$GROUP '/home/ubuntu'
 # RUN groupadd -g 1000 -r $GROUP \
 #   && useradd --create-home --no-log-init -r -s /bin/zsh -u 1000 -g $GROUP $USER \
 #   && usermod -aG sudo $USER \
