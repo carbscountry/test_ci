@@ -1,7 +1,7 @@
 # 機械学習コンペ向け環境
 # docker build -f Dockerfile -t cfiken/mykaggle:cu117 .
 # 
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # 時刻・言語環境設定に必要最小限の apt
 # Add ASIA/TOKYO time zone
@@ -34,12 +34,23 @@ ENV PATH=$HOME/.local/bin:$PATH
 RUN groupadd -g 1000 -r $GROUP \
   && useradd --create-home --no-log-init -r -s /bin/zsh -u 1000 -g $GROUP $USER
 
+USER root
+
+RUN usermod -aG sudo $USER 
+RUN echo "$USER:ubuntu" | chpasswd
+# RUN groupadd -g 1000 -r $GROUP \
+#   && useradd --create-home --no-log-init -r -s /bin/zsh -u 1000 -g $GROUP $USER \
+#   && usermod -aG sudo $USER \
+#   && chown -R $USER:$GROUP $HOME/.local
+
+
 # apt-packages
 RUN apt-get update && apt-get install -y \
     zsh \
     curl \
     git \
     zip \
+    sudo \
     libbz2-dev \
     libcupti-dev \
     libffi-dev \
@@ -50,18 +61,18 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-dev \
     pkg-config \
     zlib1g-dev \
+    openssh-client \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-USER $USER
 WORKDIR $HOME
 
 # ユーザー設定全般
-RUN mkdir -p ~/.ssh \
-  && ssh-keyscan github.com >> .ssh/known_hosts
+# RUN mkdir -p ~/.ssh \
+#   && ssh-keyscan github.com >> .ssh/known_hosts
 
 # Python
-ENV PYTHON_VERSION=3.10.4 \
+ENV PYTHON_VERSION=3.10 \
   POETRY_VIRTUALENVS_IN_PROJECT=1
 RUN git clone https://github.com/pyenv/pyenv.git .pyenv \
   && git clone https://github.com/pyenv/pyenv-virtualenv.git .pyenv/plugins/pyenv-virtualenv 
@@ -72,7 +83,7 @@ RUN eval "$(pyenv init -)" \
   && curl -sSL https://install.python-poetry.org | python \
   && rm -rf $HOME/.cache
 
-USER $USER
+# USER $USER
 
 WORKDIR /app
 

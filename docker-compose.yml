@@ -3,8 +3,11 @@
 version: "3.7"
 services:
   mykaggle:
-    image: cfiken/mykaggle:cu117
-    shm_size: '256gb'
+    # image: cfiken/mykaggle:cu117
+    # shm_size: '256gb'
+    build:
+      context: .
+      shm_size: '256gb'
     command:
       [
         "poetry",
@@ -17,7 +20,14 @@ services:
         "jupyter_notebook_config.py"
       ]
     container_name: mykaggle
-    runtime: nvidia
+    # runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: "no"
     ports:
       - target: 8888
@@ -28,20 +38,20 @@ services:
       - type: bind
         source: .
         target: /app
-      - type: bind
-        source: $SSH_AUTH_SOCK
-        target: /ssh-agent
-      - type: bind
-        source: ~/.aws
-        target: /home/ubuntu/.aws
+      # - type: bind
+      #   source: $SSH_AUTH_SOCK
+      #   target: /ssh-agent
+      # - type: bind
+      #   source: ~/.aws
+      #   target: /home/ubuntu/.aws
       - type: bind
         source: ~/.kaggle
         target: /home/ubuntu/.kaggle
     environment:
       SSH_AUTH_SOCK: /ssh-agent
       MLFLOW_TRACKING_URI: $MLFLOW_TRACKING_URI
-      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-      MY_SLACK_WEBHOOK_URL: $MY_SLACK_WEBHOOK_URL
+      # AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+      # AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+      # MY_SLACK_WEBHOOK_URL: $MY_SLACK_WEBHOOK_URL
     tty: true
     stdin_open: true
